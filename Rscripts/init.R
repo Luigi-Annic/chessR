@@ -18,20 +18,35 @@ tilenames <- matrix(data= c(
   unlist(lapply(8:1, function(x) paste0("h",x)))),
   nrow = 8, byrow = F)
 
-#all traverses
+#all traverses (Rook and queen)
 alltravs <- c(split(tilenames, row(tilenames)),
               split(tilenames, col(tilenames)))
 names(alltravs) <- c(1:16)
-#all diagonals
+
+#all diagonals (bishop and queen)
 alldiags <- c(split(tilenames, row(tilenames) - col(tilenames)), 
               split(tilenames, row(tilenames) + col(tilenames)))
 
 names(alldiags) <- c(1:30)
 
-#for (d in names(alldiags)) {
-#  if ("b3" %in% alldiags[[d]]) print(alldiags[[d]])
-#}
+# King moves for each tile
 
+mat.pad = rbind(NA, cbind(NA, tilenames, NA), NA)
+
+ind = 2:(ncol(tilenames) + 1) # row/column indices of the "middle"
+neigh = rbind(N  = as.vector(mat.pad[ind - 1, ind    ]),
+              NE = as.vector(mat.pad[ind - 1, ind + 1]),
+              E  = as.vector(mat.pad[ind    , ind + 1]),
+              SE = as.vector(mat.pad[ind + 1, ind + 1]),
+              S  = as.vector(mat.pad[ind + 1, ind    ]),
+              SW = as.vector(mat.pad[ind + 1, ind - 1]),
+              W  = as.vector(mat.pad[ind    , ind - 1]),
+              NW = as.vector(mat.pad[ind - 1, ind - 1]))
+
+
+colnames(neigh) <- as.character(tilenames)
+
+# pieces
 Rook <- list(label = "R",
              value = 4.5,
              moverange = 8,
@@ -41,7 +56,7 @@ Rook <- list(label = "R",
 King <- list(label = "K",
              value = NA,
              moverange = 1,
-             movedirection = c("l", "d"),
+             movedirection = c("k"),
              move_as_capture = TRUE)
 
 Bishop <- list(label = "B",
@@ -54,26 +69,24 @@ emptyboard <- matrix(data = rep("", 64),
                      nrow = 8, ncol = 8, byrow = TRUE,
                      dimnames = list(as.character(c(8:1)),c(letters[1:8])))
 
-piece <- Bishop
+piece <- Rook
 initialposition <- "b3"
 
 defmoves <- function(piece, initialposition) {
   moves0 <- c()
-  #X <- unlist(strsplit(initialposition, ""))[1]
-  #Y <- unlist(strsplit(initialposition, ""))[2]
+
+  # Rook and Queen move
   if ("l" %in% piece$movedirection) {
-    #  moves0 <- c(unlist(lapply(1:8, function(y) paste0(X, y))),
-    #             unlist(lapply(letters[1:8], function(x) paste0(x, Y))))
     for (l in names(alltravs)) {
       if (initialposition %in% alltravs[[l]]){
-        m0 <- alltravs[[d]]
+        m0 <- alltravs[[l]]
         moves0 <- c(moves0, m0) 
       }
     }
   }
   
+  # Bishop and Queen move
   if ("d" %in% piece$movedirection) {
-    
     for (d in names(alldiags)) {
       if (initialposition %in% alldiags[[d]]){
         m0 <- alldiags[[d]]
@@ -82,6 +95,12 @@ defmoves <- function(piece, initialposition) {
     }
   }
   
+  # King move
+  if ("k" %in% piece$movedirection) {
+    moves0 <- as.character(na.omit(neigh[, initialposition]))
+  }
+  
+  return(moves0)
 }
 
 
