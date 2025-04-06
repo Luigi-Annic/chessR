@@ -50,6 +50,20 @@ neigh = rbind(N  = as.vector(mat.pad[ind - 1, ind    ]),
 
 colnames(neigh) <- as.character(tilenames)
 
+# Knight moves
+mat.pad2 = rbind(NA, NA, cbind(NA, NA, tilenames, NA, NA), NA, NA)
+
+ind2 = 3:(ncol(tilenames)+2)
+nighty= rbind(NNE = as.vector(mat.pad2[ind2 - 2, ind2 - 1]),
+              NEE = as.vector(mat.pad2[ind2 - 1, ind2 - 2]),
+              SEE = as.vector(mat.pad2[ind2 - 2, ind2 + 1]),
+              SSE = as.vector(mat.pad2[ind2 - 1, ind2 + 2]),
+              SSW = as.vector(mat.pad2[ind2 + 1, ind2 - 2]),
+              SWW = as.vector(mat.pad2[ind2 + 2, ind2 - 1]),
+              NWW = as.vector(mat.pad2[ind2 + 1, ind2 + 2]),
+              NNW = as.vector(mat.pad2[ind2 + 2, ind2 + 1]))
+
+colnames(nighty) <- as.character(tilenames)
 # pieces
 Rook <- list(label = "R",
              value = 4.5,
@@ -72,6 +86,11 @@ Queen <- list(label = "Q",
               value = 9,
               moverange = 8,
               movedirection = c("d", "l"))
+
+Knight <- list(label = "N",
+               value = 3,
+               moverange = 3,
+               movedirectio = "n") # need to implement knght movement as did with King
 
 emptyboard <- matrix(data = rep("", 64),
                      nrow = 8, ncol = 8, byrow = TRUE,
