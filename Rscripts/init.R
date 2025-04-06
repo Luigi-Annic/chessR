@@ -7,6 +7,8 @@ init <- matrix(data = c("Rw", "Nw", "Bw", "Qw", "Kw", "Bw", "Nw", "Rw",
                dimnames = list(c(8:1),c(letters[1:8])))
 
 
+
+
 tilenames <- matrix(data= c(
   unlist(lapply(8:1, function(x) paste0("a",x))),
   unlist(lapply(8:1, function(x) paste0("b",x))),
@@ -27,8 +29,10 @@ names(alltravs) <- c(1:16)
 alldiags <- c(split(tilenames, row(tilenames) - col(tilenames)), 
               split(tilenames, row(tilenames) + col(tilenames)))
 
-names(alldiags) <- c(1:30)
+names(alldiags) <- c(1:30) 
 
+# remove diagonals with one element only
+alldiags<- alldiags[which(as.numeric(lapply(1:length(alldiags), function(i) length(alldiags[[i]])))!=1)]
 # King moves for each tile
 
 mat.pad = rbind(NA, cbind(NA, tilenames, NA), NA)
@@ -51,27 +55,93 @@ Rook <- list(label = "R",
              value = 4.5,
              moverange = 8,
              movedirection = c("l"),
-             move_as_capture = TRUE)
+             never_moved = TRUE) # to check for castling rights
 
 King <- list(label = "K",
              value = NA,
              moverange = 1,
              movedirection = c("k"),
-             move_as_capture = TRUE)
+             never_moved = TRUE) # to check for castling rights
 
 Bishop <- list(label = "B",
                value = 3,
                moverange = 8,
-               movedirection = "d",
-               move_as_capture = TRUE)
+               movedirection = "d")
+
+Queen <- list(label = "Q",
+              value = 9,
+              moverange = 8,
+              movedirection = c("d", "l"))
 
 emptyboard <- matrix(data = rep("", 64),
                      nrow = 8, ncol = 8, byrow = TRUE,
                      dimnames = list(as.character(c(8:1)),c(letters[1:8])))
 
-piece <- Rook
-initialposition <- "b3"
+emptyboard[initialcoords[2], initialcoords[1]] <- "Rw"
+emptyboard[which(tilenames == "b7")] <- "Bb"
+emptyboard[which(tilenames == "b1")] <- "Kw"
+emptyboard[which(tilenames == "d5")] <- "pw"
+emptyboard[which(tilenames == "e1")] <- "Qw"
+emptyboard[which(tilenames == "d7")] <- "Rb"
+emptyboard[which(tilenames == "c6")] <- "Bw"
+emptyboard[which(tilenames == "b3")] <- "Rw"
 
+
+board <- emptyboard
+piece <- Rook
+initialposition <- "b7"
+m0 <- alldiags$'8'
+
+check_obstacles <- function(m0, initialposition) {
+  occupied_tiles <- c()
+  tile_index <- c()
+  for (tile in m0){
+    if (tile != initialposition & board[which(tilenames == tile)] != "") {
+      occupied_tiles <- c(occupied_tiles, tile)
+      tile_index <- c(tile_index, unlist(strsplit(tile, ""))[2])
+    }
+  }
+  
+  if (length(occupied_tiles) == 0) { # if no occupied tiles along the vector be happy
+    m1 <- m0
+  } else { # otherwise we need to calculate
+  
+  init_index <- unlist(strsplit(initialposition, ""))[2]
+  
+  #if (length(tile_index) > 1 & length(unique(tile_index)) ==1) {
+  if (unlist(strsplit(m0, ""))[2] == unlist(strsplit(m0, ""))[4]) {
+    #tile_index <- c(tile_index, unlist(strsplit(tile, ""))[1])
+    tile_index <- unlist(strsplit(occupied_tiles, ""))[c(TRUE,FALSE)]
+    init_index <- unlist(strsplit(initialposition, ""))[1]
+  }
+  
+  # Find the two most proximate occupied squares (if existent)
+  greater_than_index <- suppressWarnings(min(tile_index[tile_index>init_index]))
+  smaller_than_index <- suppressWarnings(max(tile_index[tile_index<init_index]))
+  great_tile <- ifelse(!greater_than_index %in% c(Inf, NA), occupied_tiles[which(tile_index == greater_than_index)],
+                  ifelse(unlist(strsplit(m0, ""))[2]<=unlist(strsplit(m0, ""))[4], m0[length(m0)], m0[1]))
+  small_tile <- ifelse(!smaller_than_index %in% c(-Inf, NA), occupied_tiles[which(tile_index == smaller_than_index)],
+                  ifelse(unlist(strsplit(m0, ""))[2]<=unlist(strsplit(m0, ""))[4], m0[1], m0[length(m0)]))
+  
+  m1 <- m0[which(m0 == small_tile):which(m0==great_tile)]
+  
+  # remove tiles with pieces of the same colour if these are the great_tile and small_tile
+  if (unlist(strsplit(board[which(tilenames==initialposition)], ""))[2] == unlist(strsplit(board[which(tilenames==great_tile)], ""))[2] &
+      board[which(tilenames==great_tile)] != "") {
+    m1 <- m1[! m1 ==great_tile]
+  }
+  if (unlist(strsplit(board[which(tilenames==initialposition)], ""))[2] == unlist(strsplit(board[which(tilenames==small_tile)], ""))[2] &
+      board[which(tilenames==small_tile)] != "") {
+    m1 <- m1[! m1 ==small_tile]
+  }
+  
+  }
+  
+  m1 <- m1[! m1 == initialposition] #remove the initial tile as a possible movement
+  return(m1)
+}
+
+#the board needs to be defined
 defmoves <- function(piece, initialposition) {
   moves0 <- c()
 
@@ -80,7 +150,8 @@ defmoves <- function(piece, initialposition) {
     for (l in names(alltravs)) {
       if (initialposition %in% alltravs[[l]]){
         m0 <- alltravs[[l]]
-        moves0 <- c(moves0, m0) 
+        m1 <- check_obstacles(m0, initialposition)
+        moves0 <- c(moves0, m1) 
       }
     }
   }
@@ -90,7 +161,8 @@ defmoves <- function(piece, initialposition) {
     for (d in names(alldiags)) {
       if (initialposition %in% alldiags[[d]]){
         m0 <- alldiags[[d]]
-        moves0 <- c(moves0, m0)
+        m1 <- check_obstacles(m0, initialposition)
+        moves0 <- c(moves0, m1)
       }
     }
   }
@@ -105,12 +177,12 @@ defmoves <- function(piece, initialposition) {
 
 
 
-legalmoves <- function(piece, initialposition) {
-  initialcoords <- unlist(strsplit(initialposition, ""))
-  emptyboard[initialcoords[2], initialcoords[1]] <- piece$label
+#legalmoves <- function(piece, initialposition) {
+#  initialcoords <- unlist(strsplit(initialposition, ""))
+#  emptyboard[initialcoords[2], initialcoords[1]] <- piece$label
   
-}
+#}
 
-unlist(strsplit(initialposition, ""))
+#unlist(strsplit(initialposition, ""))
 
 
