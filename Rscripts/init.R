@@ -64,6 +64,40 @@ nighty= rbind(NNE = as.vector(mat.pad2[ind2 - 2, ind2 - 1]),
               NNW = as.vector(mat.pad2[ind2 + 2, ind2 + 1]))
 
 colnames(nighty) <- as.character(tilenames)
+
+# pawn
+mat.pad3 = rbind(NA, NA, cbind(NA, NA, tilenames,NA, NA), NA, NA)
+
+ind = 3:(ncol(tilenames) + 2) # row/column indices of the "middle"
+whitepawns = rbind(
+              N  = as.vector(mat.pad3[ind - 1, ind    ]),
+              dN = as.vector(mat.pad3[ind - 2, ind    ]),
+              NE = as.vector(mat.pad3[ind - 1, ind + 1]),
+              NW = as.vector(mat.pad3[ind - 1, ind - 1]))
+
+colnames(whitepawns) <- as.character(tilenames)
+
+whitepawns["dN",] <- ifelse(colnames(whitepawns) %in% c("a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"),
+                            whitepawns["dN",], NA)
+
+wpmoves <- whitepawns[c("N", "dN"),]
+wpcaptures <- whitepawns[c("NE", "NW"),]
+
+
+blackpawns = rbind(S  = as.vector(mat.pad3[ind + 1, ind    ]),
+                   dS = as.vector(mat.pad3[ind + 2, ind    ]),
+                   SE = as.vector(mat.pad3[ind + 1, ind + 1]),
+                   SW = as.vector(mat.pad3[ind + 1, ind - 1]))
+  
+colnames(blackpawns) <- as.character(tilenames)
+
+blackpawns["dS",] <- ifelse(colnames(blackpawns) %in% c("a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"),
+                            blackpawns["dS",], NA)
+
+bpmoves <- blackpawns[c("S", "dS"),]
+bpcaptures <- blackpawns[c("SE", "SW"),]
+
+bpmoves
 # pieces
 Rook <- list(label = "R",
              value = 4.5,
@@ -90,13 +124,17 @@ Queen <- list(label = "Q",
 Knight <- list(label = "N",
                value = 3,
                moverange = 3,
-               movedirectio = "n") # need to implement knght movement as did with King
+               movedirection = "n") # need to implement knght movement as did with King
+
+Pawn <- list(label = "p",
+             value = 3,
+             moverange = 1,
+             movedirection = "p")
 
 emptyboard <- matrix(data = rep("", 64),
                      nrow = 8, ncol = 8, byrow = TRUE,
                      dimnames = list(as.character(c(8:1)),c(letters[1:8])))
 
-emptyboard[initialcoords[2], initialcoords[1]] <- "Rw"
 emptyboard[which(tilenames == "b7")] <- "Bb"
 emptyboard[which(tilenames == "b1")] <- "Kw"
 emptyboard[which(tilenames == "d5")] <- "pw"
@@ -104,6 +142,9 @@ emptyboard[which(tilenames == "e1")] <- "Qw"
 emptyboard[which(tilenames == "d7")] <- "Rb"
 emptyboard[which(tilenames == "c6")] <- "Bw"
 emptyboard[which(tilenames == "b3")] <- "Rw"
+emptyboard[which(tilenames == "c7")] <- "Kb"
+emptyboard[which(tilenames == "e5")] <- "Nb"
+
 
 
 board <- emptyboard
@@ -111,6 +152,7 @@ piece <- Rook
 initialposition <- "b7"
 m0 <- alldiags$'8'
 
+# check obstacles for long range pieces (Rook, Bishop, Queen)
 check_obstacles <- function(m0, initialposition) {
   occupied_tiles <- c()
   tile_index <- c()
@@ -160,8 +202,41 @@ check_obstacles <- function(m0, initialposition) {
   return(m1)
 }
 
-#the board needs to be defined
-defmoves <- function(piece, initialposition) {
+
+# remove tiles with pieces of the same colour (for King, Knight movement and maybe also pawn)
+# King will require additional check for removing tiles where it is not legal to move (controlled by enemy pieces)
+
+check_occupied_tile <- function(m0, initialposition) { 
+  m1 <- as.character(m0)
+  for (tile in m0) {
+  if (unlist(strsplit(board[which(tilenames==initialposition)], ""))[2] == unlist(strsplit(board[which(tilenames==tile)], ""))[2] &
+      board[which(tilenames==tile)] != "") {
+    m1 <- m1[! m1 == tile]
+  }
+  }
+  return(m1)
+}
+
+# Allow for pawn capture in diagonal if enemy piece stands there
+check_pawn_capture <- function(initialposition) {
+  if (turn == 1) pawnmoves <- whitepawns else pawnmoves <- blackpawns
+  
+  capturecandidates <- as.character(pawnmoves[c(3,4), initialposition])
+  c1 <- capturecandidates
+  
+  for (tile in capturecandidates) {
+    if (unlist(strsplit(board[which(tilenames==initialposition)], ""))[2] == unlist(strsplit(board[which(tilenames==tile)], ""))[2] |
+        board[which(tilenames==tile)] == "") {
+      c1 <- c1[!c1 == tile]
+    }
+  }
+  
+  return(c1)
+}
+
+
+# turn tells if it is white turn(1) or black turn (-1)
+defmoves <- function(piece, initialposition, turn = 1) {
   moves0 <- c()
 
   # Rook and Queen move
@@ -188,7 +263,25 @@ defmoves <- function(piece, initialposition) {
   
   # King move
   if ("k" %in% piece$movedirection) {
-    moves0 <- as.character(na.omit(neigh[, initialposition]))
+    m0 <- as.character(na.omit(neigh[, initialposition]))
+    moves0 <- check_occupied_tile(m0, initialposition)
+  }
+  
+  # Knight move
+  if ("n" %in% piece$movedirection) {
+    m0 <- as.character(na.omit(nighty[, initialposition]))
+    moves0 <- check_occupied_tile(m0, initialposition)
+  }
+  
+  # Pawn move
+  if ("p" %in% piece$movedirection) {
+    if (turn == 1) pawnmoves <- whitepawns else pawnmoves <- blackpawns
+    m0moves <- as.character(na.omit(pawnmoves[c(1,2), initialposition]))
+    moves0a <- check_occupied_tile(m0moves, initialposition)
+    
+    c1 <- check_pawn_capture(initialposition)
+    
+    moves0 <- c(moves0a, c1)
   }
   
   return(moves0)
