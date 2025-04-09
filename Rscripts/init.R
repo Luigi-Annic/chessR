@@ -1,8 +1,8 @@
-init <- matrix(data = c("Rw", "Nw", "Bw", "Qw", "Kw", "Bw", "Nw", "Rw",
+init <- matrix(data = c("Rb", "Nb", "Bb", "Qb", "Kb", "Bb", "Nb", "Rb",
                         rep("pw", 8),
                         rep("", 32),
                         rep("pb", 8),
-                        "Rb", "Nb", "Bb", "Qb", "Kb", "Bb", "Nb", "Rb"),
+                        "Rw", "Nw", "Bw", "Qw", "Kw", "Bw", "Nw", "Rw"),
                nrow = 8, ncol = 8, byrow = TRUE,
                dimnames = list(c(8:1),c(letters[1:8])))
 
@@ -97,7 +97,7 @@ blackpawns["dS",] <- ifelse(colnames(blackpawns) %in% c("a7", "b7", "c7", "d7", 
 bpmoves <- blackpawns[c("S", "dS"),]
 bpcaptures <- blackpawns[c("SE", "SW"),]
 
-bpmoves
+
 # pieces
 Rook <- list(label = "R",
              value = 4.5,
@@ -144,6 +144,7 @@ emptyboard[which(tilenames == "c6")] <- "Bw"
 emptyboard[which(tilenames == "b3")] <- "Rw"
 emptyboard[which(tilenames == "c7")] <- "Kb"
 emptyboard[which(tilenames == "e5")] <- "Nb"
+emptyboard[which(tilenames == "e6")] <- "pb"
 
 
 
@@ -297,4 +298,46 @@ defmoves <- function(piece, initialposition, turn = 1) {
 
 #unlist(strsplit(initialposition, ""))
 
+newgame <- function() {
+  rm(board)
+  board <- init
+  turn <- 1
+}
 
+make_move <- function(piece, initialposition, finalposition, currentboard = board) {
+  if (finalposition %in% defmoves(piece, initialposition)) {
+    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+    currentboard[which(tilenames == initialposition)] <- ""
+  } else {
+    message("Move not valid")
+  }
+  return(currentboard)
+}
+
+board <- make_move(Pawn, "e2", "e4")
+board <- make_move(Knight, "g8", "f6")
+
+# Not workin rigth now but would be a great improvement
+game <- list(board = init,
+             turn = 1,
+             history = c())
+
+make_move <- function(piece, initialposition, finalposition, currentboard = game$board,
+                      turn = game$turn) {
+  if (finalposition %in% defmoves(piece, initialposition)) {
+    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+    currentboard[which(tilenames == initialposition)] <- ""
+    turn <- game$turn *(-1)
+    move <- paste0(piece$label, initialposition, "-", finalposition)
+    history <- c(game$history, move)
+  } else {
+    message("Move not valid")
+  }
+  return(list(currentboard, turn, history))
+}
+
+## Still need to
+#' - define castle
+#' - define checks and checkmate
+#' - en passant
+#' - verification for pins (inchiodature)
