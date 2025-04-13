@@ -1,7 +1,7 @@
 init <- matrix(data = c("Rb", "Nb", "Bb", "Qb", "Kb", "Bb", "Nb", "Rb",
-                        rep("pw", 8),
-                        rep("", 32),
                         rep("pb", 8),
+                        rep("", 32),
+                        rep("pw", 8),
                         "Rw", "Nw", "Bw", "Qw", "Kw", "Bw", "Nw", "Rw"),
                nrow = 8, ncol = 8, byrow = TRUE,
                dimnames = list(c(8:1),c(letters[1:8])))
@@ -154,7 +154,7 @@ initialposition <- "b7"
 m0 <- alldiags$'8'
 
 # check obstacles for long range pieces (Rook, Bishop, Queen)
-check_obstacles <- function(m0, initialposition) {
+check_obstacles <- function(m0, initialposition, board = game$board) {
   occupied_tiles <- c()
   tile_index <- c()
   for (tile in m0){
@@ -207,7 +207,7 @@ check_obstacles <- function(m0, initialposition) {
 # remove tiles with pieces of the same colour (for King, Knight movement and maybe also pawn)
 # King will require additional check for removing tiles where it is not legal to move (controlled by enemy pieces)
 
-check_occupied_tile <- function(m0, initialposition) { 
+check_occupied_tile <- function(m0, initialposition, board = game$board) { 
   m1 <- as.character(m0)
   for (tile in m0) {
   if (unlist(strsplit(board[which(tilenames==initialposition)], ""))[2] == unlist(strsplit(board[which(tilenames==tile)], ""))[2] &
@@ -219,7 +219,7 @@ check_occupied_tile <- function(m0, initialposition) {
 }
 
 # Allow for pawn capture in diagonal if enemy piece stands there
-check_pawn_capture <- function(initialposition) {
+check_pawn_capture <- function(initialposition, board = game$board, turn = game$turn) {
   if (turn == 1) pawnmoves <- whitepawns else pawnmoves <- blackpawns
   
   capturecandidates <- as.character(pawnmoves[c(3,4), initialposition])
@@ -298,46 +298,71 @@ defmoves <- function(piece, initialposition, turn = 1) {
 
 #unlist(strsplit(initialposition, ""))
 
-newgame <- function() {
-  rm(board)
-  board <- init
-  turn <- 1
-}
+#newgame <- function() {
+#  rm(board)
+#  board <- init
+#  turn <- 1
+#}
 
-make_move <- function(piece, initialposition, finalposition, currentboard = board) {
-  if (finalposition %in% defmoves(piece, initialposition)) {
+#make_move <- function(piece, initialposition, finalposition, currentboard = board) {
+#  if (finalposition %in% defmoves(piece, initialposition)) {
+#    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+#    currentboard[which(tilenames == initialposition)] <- ""
+#  } else {
+#    message("Move not valid")
+#  }
+#  return(currentboard)
+#}
+
+#board <- make_move(Pawn, "e2", "e4")
+#board <- make_move(Knight, "g8", "f6")
+#board <- make_move(Knight, "b1", "c3")
+#board <- make_move(Pawn, "d7", "d6")
+
+
+#' in make_move, the if clause checks that:
+#' - that move is allowed by definitions
+#' - the piece is indeed in initial position and of rigth color
+
+make_move <- function(piece, initialposition, finalposition, currentboard = game$board,
+                      turn = game$turn) {
+  if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
+      paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { 
+    
     currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
     currentboard[which(tilenames == initialposition)] <- ""
+    move <- paste0(piece$label, initialposition, "-", finalposition)
+    history <- c(game$history, move)
+    turn <- ifelse(length(history)%%2 == 0, 1, -1)
   } else {
     message("Move not valid")
+    history <- game$history
   }
-  return(currentboard)
+  return(list(board = currentboard, turn = turn, history = history))
 }
 
-board <- make_move(Pawn, "e2", "e4")
-board <- make_move(Knight, "g8", "f6")
-
-# Not workin rigth now but would be a great improvement
 game <- list(board = init,
              turn = 1,
              history = c())
 
-make_move <- function(piece, initialposition, finalposition, currentboard = game$board,
-                      turn = game$turn) {
-  if (finalposition %in% defmoves(piece, initialposition)) {
-    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
-    currentboard[which(tilenames == initialposition)] <- ""
-    turn <- game$turn *(-1)
-    move <- paste0(piece$label, initialposition, "-", finalposition)
-    history <- c(game$history, move)
-  } else {
-    message("Move not valid")
-  }
-  return(list(currentboard, turn, history))
-}
-
+game <- make_move(Pawn, "d2", "d4")
+game <- make_move(Pawn, "f7", "f5")
+game <- make_move(Knight, "b1", "c3")
+game <- make_move(Knight, "g8", "f6")
+game <- make_move(Bishop, "c1", "g5")
+game <- make_move(Pawn, "e7", "e6")
+game <- make_move(Bishop, "g5", "f6")
+game <- make_move(Queen, "d8", "f6") 
+game <- make_move(Queen, "d1", "d3")
 ## Still need to
-#' - define castle
+
+#' - define castle: Puoi usare game$history per verificare che re e torre non abbiano mosso, e poi controllare
+#'                  che nessun pezzo avversario stia attaccand d1, c1, e1, oppure e1, f1, g1 a seconda di dove
+#'                  voglio arroccare, e infine che le caselle in mezzo siano libere (anche b1 deve essere libera)
+#'                  SI POTREBBE AGGIUNGERE UN ELSE IF PRIMA DI "move not valud" PER VERIFICARE SE SI VUOLE ARROCCARE
+#'                  E SE L'ARROCCO SIA EFFETTIVAMENTE LEGALE
+#'                  else if (castling_check_condition("short") == TRUE {remove rook and king from initial position
+#'                  switch to new, update history and turn})
 #' - define checks and checkmate
 #' - en passant
 #' - verification for pins (inchiodature)
