@@ -149,9 +149,9 @@ emptyboard[which(tilenames == "e6")] <- "pb"
 
 
 board <- emptyboard
-piece <- Rook
-initialposition <- "b7"
-m0 <- alldiags$'8'
+#piece <- Rook
+#initialposition <- "b7"
+#m0 <- alldiags$'8'
 
 # check obstacles for long range pieces (Rook, Bishop, Queen)
 check_obstacles <- function(m0, initialposition, board = game$board) {
@@ -222,7 +222,7 @@ check_occupied_tile <- function(m0, initialposition, board = game$board) {
 check_pawn_capture <- function(initialposition, board = game$board, turn = game$turn) {
   if (turn == 1) pawnmoves <- whitepawns else pawnmoves <- blackpawns
   
-  capturecandidates <- as.character(pawnmoves[c(3,4), initialposition])
+  capturecandidates <- as.character(na.omit(pawnmoves[c(3,4), initialposition]))
   c1 <- capturecandidates
   
   for (tile in capturecandidates) {
@@ -366,3 +366,31 @@ game <- make_move(Queen, "d1", "d3")
 #' - define checks and checkmate
 #' - en passant
 #' - verification for pins (inchiodature)
+#' 
+
+
+# finds all legal moves
+all_possibilities <- function() {
+  
+  legalmoves <- list()
+  
+  for (j in (1 : length(game$board))) {
+    if (game$board[j] != "") {
+      pl <- unlist(strsplit(game$board[j], ""))[1]
+      
+    if (pl == "K") piece <- King
+    if (pl == "Q") piece <- Queen
+    if (pl == "R") piece <- Rook
+    if (pl == "B") piece <- Bishop
+    if (pl == "N") piece <- Knight
+    if (pl == "p") piece <- Pawn
+    
+    turn <- ifelse(unlist(strsplit(game$board[j], ""))[2] == "w", 1, -1)
+    mv0 <- defmoves(piece, initialposition = tilenames[j], turn)
+    
+    legalmoves[[unlist(strsplit(game$board[j], ""))[2]]][[paste0(game$board[j], "_", tilenames[j])]] <- mv0
+    }
+  }
+  
+  return(legalmoves)
+}
