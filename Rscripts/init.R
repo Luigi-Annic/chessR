@@ -324,45 +324,40 @@ defmoves <- function(piece, initialposition, turn = 1) {
 #' - that move is allowed by definitions
 #' - the piece is indeed in initial position and of rigth color
 
-make_move <- function(piece, initialposition, finalposition, currentboard = game$board,
-                      turn = game$turn) {
-  if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
-      paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { 
-    
-    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
-    currentboard[which(tilenames == initialposition)] <- ""
-    move <- paste0(piece$label, initialposition, "-", finalposition)
-    history <- c(game$history, move)
-    turn <- ifelse(length(history)%%2 == 0, 1, -1)
-  } else {
-    message("Move not valid")
-    history <- game$history
-  }
-  return(list(board = currentboard, turn = turn, history = history))
-}
+#make_move <- function(piece, initialposition, finalposition, currentboard = game$board,
+#                      turn = game$turn) {
+#  if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
+#      paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { 
+#    
+#    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+#    currentboard[which(tilenames == initialposition)] <- ""
+#    move <- paste0(piece$label, initialposition, "-", finalposition)
+#    history <- c(game$history, move)
+#    turn <- ifelse(length(history)%%2 == 0, 1, -1)
+#  } else {
+#    message("Move not valid")
+#    history <- game$history
+#  }
+#  return(list(board = currentboard, turn = turn, history = history))
+#}
 
-game <- list(board = init,
-             turn = 1,
-             history = c())
+#game <- list(board = init,
+#             turn = 1,
+#             history = c())
 
-game <- make_move(Pawn, "d2", "d4")
-game <- make_move(Pawn, "f7", "f5")
-game <- make_move(Knight, "b1", "c3")
-game <- make_move(Knight, "g8", "f6")
-game <- make_move(Bishop, "c1", "g5")
-game <- make_move(Pawn, "e7", "e6")
-game <- make_move(Bishop, "g5", "f6")
-game <- make_move(Queen, "d8", "f6") 
-game <- make_move(Queen, "d1", "d3")
+#game <- make_move(Pawn, "d2", "d4")
+#game <- make_move(Pawn, "f7", "f5")
+#game <- make_move(Knight, "b1", "c3")
+#game <- make_move(Knight, "g8", "f6")
+#game <- make_move(Bishop, "c1", "g5")
+#game <- make_move(Pawn, "e7", "e6")
+#game <- make_move(Bishop, "g5", "f6")
+#game <- make_move(Queen, "d8", "f6") 
+#game <- make_move(Queen, "d1", "d3")
+#game <- make_move(Bishop, "f8", "b4")
+#game <- make_move(Knight, "g1", "f3")
 ## Still need to
-
-#' - define castle: Puoi usare game$history per verificare che re e torre non abbiano mosso, e poi controllare
-#'                  che nessun pezzo avversario stia attaccand d1, c1, e1, oppure e1, f1, g1 a seconda di dove
-#'                  voglio arroccare, e infine che le caselle in mezzo siano libere (anche b1 deve essere libera)
-#'                  SI POTREBBE AGGIUNGERE UN ELSE IF PRIMA DI "move not valud" PER VERIFICARE SE SI VUOLE ARROCCARE
-#'                  E SE L'ARROCCO SIA EFFETTIVAMENTE LEGALE
-#'                  else if (castling_check_condition("short") == TRUE {remove rook and king from initial position
-#'                  switch to new, update history and turn})
+#
 #' - define checks and checkmate
 #' - en passant
 #' - verification for pins (inchiodature)
@@ -394,3 +389,112 @@ all_possibilities <- function() {
   
   return(legalmoves)
 }
+
+
+#enemy_moves <- all_possibilities()[[enemy]]
+
+castling <- function(side, currentboard = game$board) {
+  
+  castlingrow <- ifelse(game$turn == 1, "1", "8")
+  enemy <- ifelse(game$turn == 1, "b", "w")
+  enemy_moves <- all_possibilities()[[enemy]]
+  
+  if (side %in% c("0-0", "O-O")) {
+    
+    if (!grepl(paste0("e", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+        !grepl(paste0("h", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+        !(paste0("e", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        !(paste0("f", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        !(paste0("g", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        game$board[tilenames == paste0("f", castlingrow)] == "" &
+        game$board[tilenames == paste0("g", castlingrow)] == ""
+        ) {
+      
+      currentboard[which(tilenames == paste0("g", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
+      currentboard[which(tilenames == paste0("f", castlingrow))] <- currentboard[which(tilenames == paste0("h", castlingrow))]
+      
+      currentboard[which(tilenames == paste0("e", castlingrow))] <- ""
+      currentboard[which(tilenames == paste0("h", castlingrow))] <- ""
+      
+      move <- paste0("Ke", castlingrow, "_0-0")
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
+    } else {
+      message("Castle not allowed")
+      history <- game$history
+    }
+  }
+  
+  if (side %in% c("0-0-0", "O-O-O")) {
+    
+    if (!grepl(paste0("e", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+        !grepl(paste0("a", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+        !(paste0("c", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        !(paste0("d", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        !(paste0("e", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
+        game$board[tilenames == paste0("b", castlingrow)] == "" &
+        game$board[tilenames == paste0("c", castlingrow)] == "" &
+        game$board[tilenames == paste0("d", castlingrow)] == ""
+    ) {
+      
+      currentboard[which(tilenames == paste0("c", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
+      currentboard[which(tilenames == paste0("d", castlingrow))] <- currentboard[which(tilenames == paste0("a", castlingrow))]
+      
+      currentboard[which(tilenames == paste0("a", castlingrow))] <- ""
+      currentboard[which(tilenames == paste0("e", castlingrow))] <- ""
+      
+      move <- paste0("Ke", castlingrow, "_0-0-0")
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
+    } else {
+      message("Castle not allowed")
+      history <- game$history
+    }
+  }
+  return(list(board = currentboard, turn = turn, history = history))
+}
+
+
+make_move2 <- function(piece, initialposition = "", finalposition = "", currentboard = game$board,
+                      turn = game$turn) {
+  
+  if (initialposition %in% c("0-0", "O-O", "0-0-0", "O-O-O")) {
+    
+    castled <- castling(initialposition)
+    
+    currentboard <- castled$board
+    turn <- castled$turn
+    history <- castled$history
+    
+  } else if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
+      paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { 
+    
+    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+    currentboard[which(tilenames == initialposition)] <- ""
+    move <- paste0(piece$label, initialposition, "-", finalposition)
+    history <- c(game$history, move)
+    turn <- ifelse(length(history)%%2 == 0, 1, -1)
+  } else {
+    message("Move not valid")
+    history <- game$history
+  }
+  return(list(board = currentboard, turn = turn, history = history))
+}
+
+game <- list(board = init,
+             turn = 1,
+             history = c())
+
+game <- make_move2(Pawn, "d2", "d4")
+game <- make_move2(Pawn, "f7", "f5")
+game <- make_move2(Knight, "b1", "c3")
+game <- make_move2(Knight, "g8", "f6")
+game <- make_move2(Bishop, "c1", "g5")
+game <- make_move2(Pawn, "e7", "e6")
+game <- make_move2(Bishop, "g5", "f6")
+game <- make_move2(Queen, "d8", "f6") 
+game <- make_move2(Queen, "d1", "d3")
+game <- make_move2(Bishop, "f8", "b4")
+game <- make_move2(Knight, "g1", "f3")
+game <- make_move2(King, "0-0")
+game <- make_move2(King, "0-0-0")
