@@ -406,8 +406,8 @@ castling <- function(side, currentboard = game$board) {
         !(paste0("e", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
         !(paste0("f", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
         !(paste0("g", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
-        game$board[tilenames == paste0("f", castlingrow)] == "" &
-        game$board[tilenames == paste0("g", castlingrow)] == ""
+        currentboard[tilenames == paste0("f", castlingrow)] == "" &
+        currentboard[tilenames == paste0("g", castlingrow)] == ""
         ) {
       
       currentboard[which(tilenames == paste0("g", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
@@ -432,9 +432,9 @@ castling <- function(side, currentboard = game$board) {
         !(paste0("c", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
         !(paste0("d", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
         !(paste0("e", castlingrow) %in% unique(Reduce(c, enemy_moves))) &
-        game$board[tilenames == paste0("b", castlingrow)] == "" &
-        game$board[tilenames == paste0("c", castlingrow)] == "" &
-        game$board[tilenames == paste0("d", castlingrow)] == ""
+        currentboard[tilenames == paste0("b", castlingrow)] == "" &
+        currentboard[tilenames == paste0("c", castlingrow)] == "" &
+        currentboard[tilenames == paste0("d", castlingrow)] == ""
     ) {
       
       currentboard[which(tilenames == paste0("c", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
@@ -471,6 +471,12 @@ make_move2 <- function(piece, initialposition = "", finalposition = "", currentb
     
     currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
     currentboard[which(tilenames == initialposition)] <- ""
+    
+    # promotion of pawns in 1st/8th row (always to queen for now)
+    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) {
+      currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
+    }
+    
     move <- paste0(piece$label, initialposition, "-", finalposition)
     history <- c(game$history, move)
     turn <- ifelse(length(history)%%2 == 0, 1, -1)
@@ -498,3 +504,32 @@ game <- make_move2(Bishop, "f8", "b4")
 game <- make_move2(Knight, "g1", "f3")
 game <- make_move2(King, "0-0")
 game <- make_move2(King, "0-0-0")
+
+game <- make_move2(Pawn, "f5", "f4")
+game <- make_move2(Pawn, "g2", "g3")
+game <- make_move2(Pawn, "f4", "g3")
+game <- make_move2(King, "c1", "b1")
+game <- make_move2(Pawn, "g3", "g2")
+game <- make_move2(Pawn, "h2", "h4")
+
+game <- make_move2(Pawn, "g2", "h1")
+game <- make_move2(Pawn, "h4", "h5")
+game <- make_move2(Queen, "h1", "h5")
+
+###
+game <- list(board = init,
+             turn = 1,
+             history = c())
+
+game <- make_move2(Knight, "g1", "f3")
+game <- make_move2(Pawn, "d7", "d5")
+game <- make_move2(Rook, "h1", "g1")
+game <- make_move2(Knight, "g8", "f6")
+game <- make_move2(Pawn, "g2", "g3")
+game <- make_move2(Bishop, "c8", "f5")
+game <- make_move2(Bishop, "f1", "g2")
+game <- make_move2(Pawn, "e7", "e6")
+game <- make_move2(Rook, "g1", "h1")
+game <- make_move2(Bishop, "f8", "e7")
+game <- make_move2(King, "e1","f1")
+game <- make_move2(King, "0-0")
