@@ -97,6 +97,7 @@ blackpawns["dS",] <- ifelse(colnames(blackpawns) %in% c("a7", "b7", "c7", "d7", 
 bpmoves <- blackpawns[c("S", "dS"),]
 bpcaptures <- blackpawns[c("SE", "SW"),]
 
+rm(list = c("ind", "ind2", "mat.pad", "mat.pad2", "mat.pad3"))
 
 # pieces
 Rook <- list(label = "R",
@@ -131,24 +132,24 @@ Pawn <- list(label = "p",
              moverange = 1,
              movedirection = "p")
 
-emptyboard <- matrix(data = rep("", 64),
-                     nrow = 8, ncol = 8, byrow = TRUE,
-                     dimnames = list(as.character(c(8:1)),c(letters[1:8])))
+#emptyboard <- matrix(data = rep("", 64),
+#                     nrow = 8, ncol = 8, byrow = TRUE,
+#                     dimnames = list(as.character(c(8:1)),c(letters[1:8])))
 
-emptyboard[which(tilenames == "b7")] <- "Bb"
-emptyboard[which(tilenames == "b1")] <- "Kw"
-emptyboard[which(tilenames == "d5")] <- "pw"
-emptyboard[which(tilenames == "e1")] <- "Qw"
-emptyboard[which(tilenames == "d7")] <- "Rb"
-emptyboard[which(tilenames == "c6")] <- "Bw"
-emptyboard[which(tilenames == "b3")] <- "Rw"
-emptyboard[which(tilenames == "c7")] <- "Kb"
-emptyboard[which(tilenames == "e5")] <- "Nb"
-emptyboard[which(tilenames == "e6")] <- "pb"
+#emptyboard[which(tilenames == "b7")] <- "Bb"
+#emptyboard[which(tilenames == "b1")] <- "Kw"
+#emptyboard[which(tilenames == "d5")] <- "pw"
+#emptyboard[which(tilenames == "e1")] <- "Qw"
+#emptyboard[which(tilenames == "d7")] <- "Rb"
+#emptyboard[which(tilenames == "c6")] <- "Bw"
+#emptyboard[which(tilenames == "b3")] <- "Rw"
+#emptyboard[which(tilenames == "c7")] <- "Kb"
+#emptyboard[which(tilenames == "e5")] <- "Nb"
+#emptyboard[which(tilenames == "e6")] <- "pb"
 
 
 
-board <- emptyboard
+#board <- emptyboard
 #piece <- Rook
 #initialposition <- "b7"
 #m0 <- alldiags$'8'
@@ -391,8 +392,6 @@ all_possibilities <- function() {
 }
 
 
-#enemy_moves <- all_possibilities()[[enemy]]
-
 castling <- function(side, currentboard = game$board) {
   
   castlingrow <- ifelse(game$turn == 1, "1", "8")
@@ -477,7 +476,16 @@ make_move2 <- function(piece, initialposition = "", finalposition = "", currentb
       currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
     }
     
-    move <- paste0(piece$label, initialposition, "-", finalposition)
+    #move <- paste0(piece$label, initialposition, "-", finalposition)
+    move <- if (game$board[tilenames == finalposition] == "") {
+      paste0(piece$label, initialposition, "-", finalposition)
+    } else {
+      paste0(piece$label, initialposition, "x", finalposition)
+    }
+    
+    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) move <-paste0(move, "=Q")
+  
+    
     history <- c(game$history, move)
     turn <- ifelse(length(history)%%2 == 0, 1, -1)
   } else {
@@ -533,3 +541,32 @@ game <- make_move2(Rook, "g1", "h1")
 game <- make_move2(Bishop, "f8", "e7")
 game <- make_move2(King, "e1","f1")
 game <- make_move2(King, "0-0")
+
+# Creates move scorelist, in beautiful notation
+# Note that shortnotation might incur in lack of clarity when two moves are possible
+# e.g. when Knight on b3, other Knight on f3, and short move listed as Nd4
+# Anyway, the scorelist saved in history also has the starting square so you
+# can look at it in case of doubt
+moves_scoresheet <- function(h = game$history, shortnotation = TRUE){
+  if (shortnotation == TRUE) {
+  h_orig <- h_alt<- h  
+  substr(h, 2,4) <- "  "
+  h <- gsub(" ", "", h)
+  h <- gsub("p|_|-", "", h)
+  h <- gsub("000", "0-0-0", h)
+  h <- gsub("00", "0-0", h)
+  h <- gsub("K0-0", "0-0", h)
+  
+  substr(h_alt, 1,1) <- substr(h_alt, 3,3) <- " "
+  h_alt <- gsub(" ", "", h_alt)
+  
+  hfin <- ifelse(paste0(substr(h_orig,1,1), substr(h_orig,4,4)) == "px", h_alt ,h)
+  } else hfin = h
+  
+  alt <- unlist(lapply(1:length(h), function(j) ifelse(j %%2 == 0, -1, 1)))
+  
+  data.frame(n = 1:ceiling(length(h)/2),
+             white = hfin[alt == 1],
+             black = if (length(h)%%2 == 0) hfin[alt == -1] else c(h[alt == -1], ""))
+}
+

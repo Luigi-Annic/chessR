@@ -17,3 +17,23 @@ defmoves(King, "b1")
 
 defmoves(Rook, "b3")
 defmoves(Queen, "e1")
+
+
+####
+
+game <- list(board = init,
+              turn = 1,
+              history = c())
+
+game <- make_move2(Pawn, "e2", "e4")
+game <- make_move2(Pawn, "d7", "d5")
+game <- make_move2(Pawn, "e4", "d5")
+game <- make_move2(Pawn, "c7", "c6")
+game <- make_move2(Pawn, "d5", "c6")
+game <- make_move2(Knight, "g8", "f6")
+game <- make_move2(Pawn, "c6", "b7")
+game <- make_move2(Knight, "b8", "c6")
+game <- make_move2(Pawn, "b7", "c8")
+game <- make_move2(Rook, "a8", "c8")
+
+
