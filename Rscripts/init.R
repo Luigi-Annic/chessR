@@ -361,8 +361,9 @@ defmoves <- function(piece, initialposition, turn = 1) {
 #
 #' - define checks and checkmate
 #' - en passant
-#' - verification for pins (inchiodature)
-#' 
+#' - verification for pins (inchiodature) (Lo facciamo verificando dopo la mossa e prima di passare il turno
+#'    che il re non sia in scacco con kingcheck: se il re dopo aver mosso risulta essere in scacco vuol dire che abbiamo
+#'    mosso un pezzo inchiodato e non va bene)
 
 
 # finds all legal moves
@@ -530,9 +531,7 @@ game <- make_move2(Pawn, "h4", "h5")
 game <- make_move2(Queen, "h1", "h5")
 
 ###
-game <- list(board = init,
-             turn = 1,
-             history = c())
+game <- newgame()
 
 game <- make_move2(Knight, "g1", "f3")
 game <- make_move2(Pawn, "d7", "d5")
@@ -611,3 +610,55 @@ if (length(names(kingcheck())) >0) { # IfTRUE then you are in check and need to 
 #'     andare con all_possibilities()[[myself]])
   
 }
+
+# Trovare linea di attacco in caso di attacco dalla distanza di torre o alfiere o donna
+# prima dobbiamo trovare quale è la linea di attacco (diagonale o traversa), perche grazie
+# a kingcheck() sappiamo solo quale pezzo dà lo scacco e quali case controlla
+
+parrycheck <- function(currentboard = game$board, turn = game$turn) {
+
+myself <- ifelse(turn == 1, "w", "b")
+mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
+
+checking_item <- names(kingcheck())
+checking_tile <- substr(checking_item, 4,5)
+
+# diagonals
+for (j in 1 : length(alldiags)) {
+ if (checking_tile %in% alldiags[[j]] & mykingposition %in% alldiags[[j]]) checkline <- alldiags[[j]] 
+}
+
+# rows/columns
+for (j in 1 : length(alltravs)) {
+  if (checking_tile %in% alltravs[[j]] & mykingposition %in% alltravs[[j]]) checkline <- alltravs[[j]] 
+}
+
+# eliminiamo caselle esterne alle caselle di attacco e del re, e la casella del re (in cui ovviamente non
+# possiamo interporre)
+checkline <- checkline[which(checkline == checking_tile):which(checkline == mykingposition)]
+checkline <- setdiff(checkline, mykingposition) # If we manage to put a piece into the line of fire check is parred
+
+# Troviamo tutte le mosse che si frappongano nelle caselle trovate in checkline
+# Ovviamente escludiamo il re dai pezzi paratori :)
+checkparry <- c()
+for (j in 1:length(names(all_possibilities()[[myself]]))) {
+  if (length(intersect(all_possibilities()[[myself]][[j]], checkline)) > 0 & 
+      substr(names(all_possibilities()[[myself]])[[j]], 1,1) != "K") {
+    checkparry[[names(all_possibilities()[[myself]])[[j]]]] <- intersect(all_possibilities()[[myself]][[j]], checkline)
+  } 
+}
+
+return(checkparry)
+}
+
+parrycheck()
+
+## Escape with the king
+# Questa funzione serve quale che sia il tipo di scacco (da una o due linee, o da cavallo/attacco ravvicinato, o da lontano)
+escapecheck <- function(currentboard = game$board, turn = game$turn) {}
+
+
+## Remove attacking piece 
+# Questa è da applicare in tutti i casi in cui c'è una sola linea di attacco (in caso di scacco doppio non serve)
+
+removeattacker <- function(currentboard = game$board, turn = game$turn) {}
