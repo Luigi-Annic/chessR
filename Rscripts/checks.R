@@ -37,3 +37,18 @@ game <- make_move2(Pawn, "b7", "c8")
 game <- make_move2(Rook, "a8", "c8")
 
 
+###
+
+game <- newgame()
+
+game <- make_move2(Pawn, "e2", "e4")
+game <- make_move2(Pawn, "d7", "d5")
+game <- make_move2(Bishop, "f1", "b5")
+game <- make_move2(Bishop, "c8", "d7")
+game <- make_move2(Knight, "g1", "f3")
+game <- make_move2(Bishop, "d7", "b5")
+game <- make_move2(Pawn, "d2", "d3")
+game <- make_move2(Knight, "b8", "c6")
+
+
+game <- make_move2(King, "0-0")

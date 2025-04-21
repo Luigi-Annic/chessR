@@ -495,9 +495,14 @@ make_move2 <- function(piece, initialposition = "", finalposition = "", currentb
   return(list(board = currentboard, turn = turn, history = history))
 }
 
-game <- list(board = init,
-             turn = 1,
-             history = c())
+
+newgame <- function(){
+  list(board = init,
+       turn = 1,
+       history = c())
+}
+
+game <- newgame()
 
 game <- make_move2(Pawn, "d2", "d4")
 game <- make_move2(Pawn, "f7", "f5")
@@ -570,3 +575,39 @@ moves_scoresheet <- function(h = game$history, shortnotation = TRUE){
              black = if (length(h)%%2 == 0) hfin[alt == -1] else c(h[alt == -1], ""))
 }
 
+# Kingcheck function returns all pieces giving check to the king
+kingcheck <- function(currentboard = game$board, turn = game$turn){
+  checkinglines <- list()
+  myself <- ifelse(turn == 1, "w", "b")
+  enemy <- ifelse(game$turn == 1, "b", "w")
+  enemy_moves <- all_possibilities()[[enemy]]
+  
+  mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
+  
+  for (j in names(enemy_moves)) {
+    if (mykingposition %in% enemy_moves[[j]]) {
+      checkinglines[[j]] <- enemy_moves[[j]]
+    }
+  }
+  
+  return(checkinglines)
+}
+
+# 
+if (length(names(kingcheck())) >0) { # IfTRUE then you are in check and need to defend, otherwise you can do whatever
+# Se lo scacco arriva da più pezzi, allora possiamo solo
+#' - spostare il re in una casa non sotto attacco (verificabile con enemymoves)
+#' 
+#' Se lo scacco arriva da un cavallo o un pedone, o da donna/alfiere/torre da casella adiacente
+#' al re, allora possiamo
+#'  - spostare il re
+#'  - eliminare l'attaccante 
+#'  
+#'  Se lo scacco arriva da alfiere/ Donna/ Torre da lontano, allora possiamo
+#'  - spostare il re
+#'  - eliminare l'attaccante
+#'  - interporre un pezzo nella traversa/diagonale di attacco (devi scrivere funzione che trovi 
+#'     le caselle in mezzo tra attaccante e re, e poi trovare tutti i pezzi amici che ci possono
+#'     andare con all_possibilities()[[myself]])
+  
+}
