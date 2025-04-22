@@ -593,24 +593,6 @@ kingcheck <- function(currentboard = game$board, turn = game$turn){
 }
 
 # 
-if (length(names(kingcheck())) >0) { # IfTRUE then you are in check and need to defend, otherwise you can do whatever
-# Se lo scacco arriva da più pezzi, allora possiamo solo
-#' - spostare il re in una casa non sotto attacco (verificabile con enemymoves)
-#' 
-#' Se lo scacco arriva da un cavallo o un pedone, o da donna/alfiere/torre da casella adiacente
-#' al re, allora possiamo
-#'  - spostare il re
-#'  - eliminare l'attaccante 
-#'  
-#'  Se lo scacco arriva da alfiere/ Donna/ Torre da lontano, allora possiamo
-#'  - spostare il re
-#'  - eliminare l'attaccante
-#'  - interporre un pezzo nella traversa/diagonale di attacco (devi scrivere funzione che trovi 
-#'     le caselle in mezzo tra attaccante e re, e poi trovare tutti i pezzi amici che ci possono
-#'     andare con all_possibilities()[[myself]])
-  
-}
-
 # Trovare linea di attacco in caso di attacco dalla distanza di torre o alfiere o donna
 # prima dobbiamo trovare quale è la linea di attacco (diagonale o traversa), perche grazie
 # a kingcheck() sappiamo solo quale pezzo dà lo scacco e quali case controlla
@@ -636,11 +618,11 @@ for (j in 1 : length(alltravs)) {
 # eliminiamo caselle esterne alle caselle di attacco e del re, e la casella del re (in cui ovviamente non
 # possiamo interporre)
 checkline <- checkline[which(checkline == checking_tile):which(checkline == mykingposition)]
-checkline <- setdiff(checkline, mykingposition) # If we manage to put a piece into the line of fire check is parred
+checkline <- setdiff(checkline, c(mykingposition, checking_tile)) # If we manage to put a piece into the line of fire check is parred
 
 # Troviamo tutte le mosse che si frappongano nelle caselle trovate in checkline
 # Ovviamente escludiamo il re dai pezzi paratori :)
-checkparry <- c()
+checkparry <- list()
 for (j in 1:length(names(all_possibilities()[[myself]]))) {
   if (length(intersect(all_possibilities()[[myself]][[j]], checkline)) > 0 & 
       substr(names(all_possibilities()[[myself]])[[j]], 1,1) != "K") {
@@ -655,10 +637,52 @@ parrycheck()
 
 ## Escape with the king
 # Questa funzione serve quale che sia il tipo di scacco (da una o due linee, o da cavallo/attacco ravvicinato, o da lontano)
-escapecheck <- function(currentboard = game$board, turn = game$turn) {}
+escapecheck <- function(currentboard = game$board, turn = game$turn) {
+  
+  escapes <- list()
+  
+  myself <- ifelse(turn == 1, "w", "b")
+  mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
+  enemy <- ifelse(game$turn == 1, "b", "w")
+  enemy_moves <- all_possibilities()[[enemy]]
+  
+  available_squares <- defmoves(King, initialposition = mykingposition, turn)
+  
+  escapes[[paste0("K", myself, "_", mykingposition)]] <-subset(available_squares, !available_squares %in% unique(Reduce(c, enemy_moves)))
+  
+  return(escapes)
+}
 
 
 ## Remove attacking piece 
 # Questa è da applicare in tutti i casi in cui c'è una sola linea di attacco (in caso di scacco doppio non serve)
 
-removeattacker <- function(currentboard = game$board, turn = game$turn) {}
+removeattacker <- function(currentboard = game$board, turn = game$turn) {
+  
+  eaters <- list()
+  
+  if (length(names(kingcheck())) == 1) {
+    
+    checking_item <- names(kingcheck())
+    checking_tile <- substr(checking_item, 4,5)
+    
+    myself <- ifelse(turn == 1, "w", "b")
+
+    for (j in names(all_possibilities()[[myself]])) {
+      if (checking_tile %in% all_possibilities()[[myself]][[j]]) eaters[[j]] <-  checking_tile
+    }
+    
+    return(eaters)
+  }
+}
+
+
+
+if (length(names(kingcheck())) >0) { 
+  parries <- parrycheck()
+  escapes <- escapecheck()
+  eaters  <- removeattacker()
+  
+  keys <- unique(c(names(escapes), names(eaters), names(parries)))
+  defendcheckmoves <- setNames(mapply(c, escapes[keys], eaters[keys], parries[keys]), keys)
+}
