@@ -678,11 +678,85 @@ removeattacker <- function(currentboard = game$board, turn = game$turn) {
 
 
 
-if (length(names(kingcheck())) >0) { 
-  parries <- parrycheck()
-  escapes <- escapecheck()
-  eaters  <- removeattacker()
+
+
+
+make_move3 <- function(piece, initialposition = "", finalposition = "", currentboard = game$board,
+                       turn = game$turn) {
   
-  keys <- unique(c(names(escapes), names(eaters), names(parries)))
-  defendcheckmoves <- setNames(mapply(c, escapes[keys], eaters[keys], parries[keys]), keys)
+  if (length(names(kingcheck())) >0) { # what you need to do if you are in check
+    parries <- parrycheck()
+    escapes <- escapecheck()
+    eaters  <- removeattacker()
+    myself <- ifelse(turn == 1, "w", "b")
+    
+    
+    keys <- unique(c(names(escapes), names(eaters), names(parries)))
+    defendcheckmoves <- setNames(mapply(c, escapes[keys], eaters[keys], parries[keys]), keys)
+    
+    checkdefender <- paste0(piece$label, myself, "_", initialposition)
+    
+    if (finalposition %in% defendcheckmoves[[checkdefender]]) {
+      
+      currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+      currentboard[which(tilenames == initialposition)] <- ""
+      
+      # promotion of pawns in 1st/8th row (always to queen for now)
+      if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) {
+        currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
+      }
+      
+      #move <- paste0(piece$label, initialposition, "-", finalposition)
+      move <- if (game$board[tilenames == finalposition] == "") {
+        paste0(piece$label, initialposition, "-", finalposition)
+      } else {
+        paste0(piece$label, initialposition, "x", finalposition)
+      }
+      
+      if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) move <-paste0(move, "=Q")
+      
+      
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
+    } else {
+      message("Invalid move, your king is in check!")
+      history <- game$history
+      
+    }
+  } else if (initialposition %in% c("0-0", "O-O", "0-0-0", "O-O-O")) { # if you are not in check, you may want to castle
+    
+    castled <- castling(initialposition)
+    
+    currentboard <- castled$board
+    turn <- castled$turn
+    history <- castled$history
+    
+  } else if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
+             paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { # or any other move!
+    
+    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+    currentboard[which(tilenames == initialposition)] <- ""
+    
+    # promotion of pawns in 1st/8th row (always to queen for now)
+    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) {
+      currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
+    }
+    
+    #move <- paste0(piece$label, initialposition, "-", finalposition)
+    move <- if (game$board[tilenames == finalposition] == "") {
+      paste0(piece$label, initialposition, "-", finalposition)
+    } else {
+      paste0(piece$label, initialposition, "x", finalposition)
+    }
+    
+    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) move <-paste0(move, "=Q")
+    
+    
+    history <- c(game$history, move)
+    turn <- ifelse(length(history)%%2 == 0, 1, -1)
+  } else {
+    message("Move not valid")
+    history <- game$history
+  }
+  return(list(board = currentboard, turn = turn, history = history))
 }

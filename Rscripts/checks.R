@@ -78,3 +78,15 @@ game <- make_move2(Rook, "f1", "e1")
 kingcheck()
 parrycheck() # Ho ancora il problema di non aver definito inchiodatura, quindi mi dà Nd7-e5 come possibile parata
 # A parte questo però sembra funzionare
+
+
+###
+
+game <- newgame()
+
+game <- make_move3(Pawn, "e2", "e4")
+game <- make_move3(Pawn, "d7", "d5")
+game <- make_move3(Bishop, "f1", "b5")
+game <- make_move3(Bishop, "c8", "f5") # The program spots that this move is not valid!! Yuppi
+game <- make_move3(Knight, "b8", "c6")
+game
