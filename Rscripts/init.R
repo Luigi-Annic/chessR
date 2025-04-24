@@ -605,6 +605,7 @@ mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
 checking_item <- names(kingcheck())
 checking_tile <- substr(checking_item, 4,5)
 
+if (substr(checking_item,1,1) %in% c("B", "Q", "R") & length(checking_item) == 1) {
 # diagonals
 for (j in 1 : length(alldiags)) {
  if (checking_tile %in% alldiags[[j]] & mykingposition %in% alldiags[[j]]) checkline <- alldiags[[j]] 
@@ -629,6 +630,9 @@ for (j in 1:length(names(all_possibilities()[[myself]]))) {
     checkparry[[names(all_possibilities()[[myself]])[[j]]]] <- intersect(all_possibilities()[[myself]][[j]], checkline)
   } 
 }
+
+} else checkparry <- list()
+
 
 return(checkparry)
 }
@@ -759,4 +763,81 @@ make_move3 <- function(piece, initialposition = "", finalposition = "", currentb
     history <- game$history
   }
   return(list(board = currentboard, turn = turn, history = history))
+}
+
+
+### Is piece pinned? 
+
+pinned_piece <- function(currentboard = game$board, turn = game$turn){
+  checkinglines <- list()
+  myself <- ifelse(turn == 1, "w", "b")
+  enemy <- ifelse(game$turn == 1, "b", "w")
+  mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
+  
+  potential_checklines0 <- list()
+  
+  x <- 1
+  # rows/columns
+  for (j in 1 : length(alltravs)) {
+    if (mykingposition %in% alltravs[[j]]) {
+      
+      full_checklines <- alltravs[[j]]
+      potential_checklines0[["trav"]][[x]] <- full_checklines[1:which(full_checklines == mykingposition)]
+      potential_checklines0[["trav"]][[x+1]] <- full_checklines[which(full_checklines == mykingposition):length(full_checklines)]
+      
+      x <- x+2
+      }
+  }
+  
+  x<- 1
+  
+  # diagonals
+  for (j in 1 : length(alldiags)) {
+    if (mykingposition %in% alldiags[[j]]) {
+      full_checklines <- alldiags[[j]]
+      potential_checklines0[["diag"]][[x]] <- full_checklines[1:which(full_checklines == mykingposition)]
+      potential_checklines0[["diag"]][[x+1]] <- full_checklines[which(full_checklines == mykingposition):length(full_checklines)]
+      
+      x <- x+2
+    } 
+  }
+  
+  
+  potential_checklines0b_t <- setdiff(potential_checklines0$trav, mykingposition)
+  
+  potential_checklines_t <- lapply(1: length(potential_checklines0b_t),
+                                 function(x) setdiff(potential_checklines0b_t[[x]], mykingposition))
+  
+  potential_checklines0b_diag <- setdiff(potential_checklines0$diag, mykingposition)
+  
+  potential_checklines_diag <- lapply(1: length(potential_checklines0b_diag),
+                                   function(x) setdiff(potential_checklines0b_diag[[x]], mykingposition))
+
+  
+  pc <- list(rowcol = potential_checklines_t,
+             diags = potential_checklines_diag)
+  
+  for (j in 1:length(pc$rowcol)) {
+    for (tile in pc$rowcol[[j]]) {
+     if (currentboard[which(tilenames==tile)] %in% c(paste0("R", enemy),
+                                                       paste0("Q", enemy))) {
+       # Potenziale inchiodatura data da torre o donna avversaria sulla semicolonna o semiriga
+       # Cerca potenziale di azione dei pezzi sulla semitraversa, e valuta chi c'è in mezzo
+       # tra donna/torre attaccante e re: se ci sono più pezzi tutto tranquillo, se c'è un pezzo avversario
+       # tutto tranquillo, se c'è solo un pezzo amico quello è inchiodato e si può muovere solo lungo questa traversa
+       # tutte le altre possibili mosse vanno tolte da all_moves()
+     }
+    }
+  }
+  
+  for (j in 1:length(pc$diags)) {
+    for (tile in pc$diags[[j]]) {
+      if (currentboard[which(tilenames==tile)] %in% c(paste0("B", enemy),
+                                                      paste0("Q", enemy))) {
+        # Potenziale inchiodatura data da Alfiere o donna avversaria sulla semidiagonale
+      }
+    }
+  }
+  
+  
 }

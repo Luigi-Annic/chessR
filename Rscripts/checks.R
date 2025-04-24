@@ -57,23 +57,24 @@ game <- make_move2(King, "0-0")
 
 game <- newgame()
 
-game<- make_move2(Pawn, "e2", "e4")
-game <- make_move2(Pawn, "e7", "e6")
-game<- make_move2(Pawn, "d2", "d4")
-game <- make_move2(Pawn, "d7", "d5")
-game<- make_move2(Pawn, "e4", "d5")
-game <- make_move2(Pawn, "e6", "d5")
+game<- make_move3(Pawn, "e2", "e4")
+game <- make_move3(Pawn, "e7", "e6")
+game<- make_move3(Pawn, "d2", "d4")
+game <- make_move3(Pawn, "d7", "d5")
+game<- make_move3(Pawn, "e4", "d5")
+game <- make_move3(Pawn, "e6", "d5")
 
-game <- make_move2(Knight, "g1", "f3")
-game <- make_move2(Knight, "g8", "f6")
+game <- make_move3(Knight, "g1", "f3")
+game <- make_move3(Knight, "g8", "f6")
 
-game <- make_move2(Bishop, "f1", "b5")
-game <- make_move2(Knight, "b8", "d7")
+game <- make_move3(Bishop, "f1", "b5")
+game <- make_move3(Knight, "b8", "c6")
 
-game <- make_move2(King, "0-0")
-game <- make_move2(Pawn, "a7" ,"a6")
+game <- make_move3(King, "0-0")
+game <- make_move3(Pawn, "a7" ,"a6")
 
-game <- make_move2(Rook, "f1", "e1")
+game <- make_move3(Rook, "f1", "e1")
+game <- make_move3(Queen, "d8", "e7")
 
 kingcheck()
 parrycheck() # Ho ancora il problema di non aver definito inchiodatura, quindi mi dà Nd7-e5 come possibile parata
@@ -90,3 +91,24 @@ game <- make_move3(Bishop, "f1", "b5")
 game <- make_move3(Bishop, "c8", "f5") # The program spots that this move is not valid!! Yuppi
 game <- make_move3(Knight, "b8", "c6")
 game
+
+####
+
+game <- newgame()
+
+game <- make_move3(Pawn, "e2", "e4")
+game <- make_move3(Pawn, "c7", "c6")
+
+game <- make_move3(Pawn, "d2", "d4")
+game <- make_move3(Pawn, "d7", "d5")
+
+game <- make_move3(Knight, "b1", "c3")
+game <- make_move3(Pawn, "d5", "e4")
+
+game <- make_move3(Knight, "c3", "e4")
+game <- make_move3(Knight, "g8", "f6")
+
+game <- make_move3(Knight, "e4", "f6")
+game <- make_move3(Queen, "d8", "c7") # Invalid!
+game <- make_move3(King, "e8", "d7") # Invalid!
+game <- make_move3(Pawn, "e7", "f6")
