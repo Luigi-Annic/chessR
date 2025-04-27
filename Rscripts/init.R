@@ -767,13 +767,32 @@ make_move3 <- function(piece, initialposition = "", finalposition = "", currentb
 
 
 ### Is piece pinned? 
-
+# QUesta funzione sara da aggiungere ad una funzione simile a all_possibilities,
+#' per escludere le mosse che in apparenza sono legali ma che per inchiodatura non lo sono.
+#' 
+#' TUTTAVIA, all_possibilities non va eliminato, perchè quello rappresenta tutte le caselle
+#' che il mio avversario attacca potenzialmente: anche se un pezzo è inchiodato, il mio re non
+#' può andare nelle sue caselle di attacco.
+#' 
+#' Quindi probabilmente useremo
+#' - l'output di all_possibilities()[[enemy]] nella versione attuale per valutare in quali caselle può muoversi il mio re,
+#'   infatti anche se il cavallo del nemico è inchiodato il mio re non può toccare le caselle che controlla 
+#'   --> Se usassi pinned_piece sull'enemy risulterebbe che potrebbe andarci!
+#'   
+#' - all_possibilities con pinned piece per valutare dove si possono muovere gli altri pezzi
+#' 
+#' forse la sluzione è usare pinned_piece() solo su [[myself]] per aggiornare le mie mosse possibili e togliere quindi le
+#' mie mosse illegali, ma continuare ad utilizzare all_possibilities()[[enemy]] per valutare le mosse di attacco dell'avversario
+#' 
+#' forse posso applincare pinned_piece solo a all_possibilities()[[myself]], ed essere apposto cosi (serve testare)
+#' 
+#' 
 pinned_piece <- function(currentboard = game$board, turn = game$turn){
   checkinglines <- list()
   myself <- ifelse(turn == 1, "w", "b")
   enemy <- ifelse(game$turn == 1, "b", "w")
   mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
-  
+  mymoves <- all_possibilities()[[myself]] # this will be the modified object, excluding unplayable moves due to pins
   potential_checklines0 <- list()
   
   x <- 1
@@ -802,42 +821,85 @@ pinned_piece <- function(currentboard = game$board, turn = game$turn){
     } 
   }
   
-  
+  # cancella eventuali semitraverse e semidiagonali con solo la casella del re
   potential_checklines0b_t <- setdiff(potential_checklines0$trav, mykingposition)
   
-  potential_checklines_t <- lapply(1: length(potential_checklines0b_t),
-                                 function(x) setdiff(potential_checklines0b_t[[x]], mykingposition))
+  #potential_checklines_t <- lapply(1: length(potential_checklines0b_t),
+  #                               function(x) setdiff(potential_checklines0b_t[[x]], mykingposition))
   
   potential_checklines0b_diag <- setdiff(potential_checklines0$diag, mykingposition)
   
-  potential_checklines_diag <- lapply(1: length(potential_checklines0b_diag),
-                                   function(x) setdiff(potential_checklines0b_diag[[x]], mykingposition))
+  #potential_checklines_diag <- lapply(1: length(potential_checklines0b_diag),
+  #                                 function(x) setdiff(potential_checklines0b_diag[[x]], mykingposition))
 
   
-  pc <- list(rowcol = potential_checklines_t,
-             diags = potential_checklines_diag)
+  pc0 <- list(rowcol = potential_checklines0b_t,
+             diags = potential_checklines0b_diag)
   
+  # Mi assicuro che in pc ogni stringa abbia mykingposition in unltima casella, tornera utile per le regular expressions
+  pc <- pc0
+  for (k in names(pc0)) {
+    for (w in 1:length(pc0[[k]])) {
+      pc[[k]][[w]] <- if (pc0[[k]][[w]][1] == mykingposition) pc0[[k]][[w]][length(pc0[[k]][[w]]):1] else pc0[[k]][[w]]
+    }
+  }
+  
+  # Cerco inchiodature in riga
   for (j in 1:length(pc$rowcol)) {
+    set <- character(length = length(pc$rowcol[[j]]))
+    x <- 1
     for (tile in pc$rowcol[[j]]) {
-     if (currentboard[which(tilenames==tile)] %in% c(paste0("R", enemy),
-                                                       paste0("Q", enemy))) {
-       # Potenziale inchiodatura data da torre o donna avversaria sulla semicolonna o semiriga
-       # Cerca potenziale di azione dei pezzi sulla semitraversa, e valuta chi c'è in mezzo
-       # tra donna/torre attaccante e re: se ci sono più pezzi tutto tranquillo, se c'è un pezzo avversario
-       # tutto tranquillo, se c'è solo un pezzo amico quello è inchiodato e si può muovere solo lungo questa traversa
-       # tutte le altre possibili mosse vanno tolte da all_moves()
-     }
+      set[x] <- currentboard[which(tile == tilenames)]
+      x <- x+1
+    }
+    set_collapsed <- paste0(set, collapse = "")
+    
+    if (grepl(paste0("(Q|R)", enemy, "(p|N|B|R|Q)", myself, "K", myself), set_collapsed)) {
+      
+      matching <- regmatches(set_collapsed, gregexpr(paste0("(Q|R)", enemy, "(p|N|B|R|Q)", myself, "K", myself), set_collapsed))
+      pinned_piece <- substr(matching,3,4)
+      
+      pinner <- substr(matching , 1, 2)
+      pinner_tile <- pc$rowcol[[j]][max(which(pinner == set))]
+      # ora devo ri mappare il pinned_piece per scoprire in che casella fosse
+      
+      pinned_tile <- pc$rowcol[[j]][max(which(pinned_piece == set))] # max gets the rightmost piece (the nearest to the king), utile se ci sono piu pezzi con lo stesso nome
+      
+      mymoves[[paste0(pinned_piece, "_", pinned_tile)]] <- intersect(mymoves[[paste0(pinned_piece, "_", pinned_tile)]],
+                                                                     pc$rowcol[[j]][which(pc$rowcol[[j]] == pinner_tile):(length(pc$rowcol[[j]])-1)]) 
+      # serve perche un alfiere inchiodato sulla diagonale può muoversi dalla casella del pezzo inchiodante alla casella prima del re
     }
   }
   
+  # cerco inchiodature in colonna
   for (j in 1:length(pc$diags)) {
+    
+    set <- character(length = length(pc$diags[[j]]))
+    x <- 1
     for (tile in pc$diags[[j]]) {
-      if (currentboard[which(tilenames==tile)] %in% c(paste0("B", enemy),
-                                                      paste0("Q", enemy))) {
-        # Potenziale inchiodatura data da Alfiere o donna avversaria sulla semidiagonale
-      }
+      set[x] <- currentboard[which(tile == tilenames)]
+      x <- x+1
     }
+    set_collapsed <- paste0(set, collapse = "")
+    
+    if (grepl(paste0("(Q|B)", enemy, "(p|N|B|R|Q)", myself, "K", myself), set_collapsed)) {
+     
+      matching <- regmatches(set_collapsed, gregexpr(paste0("(Q|B)", enemy, "(p|N|B|R|Q)", myself, "K", myself), set_collapsed))
+      pinned_piece <- substr(matching,3,4)
+      
+      pinner <- substr(matching , 1, 2)
+      pinner_tile <- pc$diags[[j]][max(which(pinner == set))]
+      # ora devo ri mappare il pinned_piece per scoprire in che casella fosse
+      
+      pinned_tile <- pc$diags[[j]][max(which(pinned_piece == set))] # max gets the rightmost piece (the nearest to the king), utile se ci sono piu pezzi con lo stesso nome
+      
+      mymoves[[paste0(pinned_piece, "_", pinned_tile)]] <- intersect(mymoves[[paste0(pinned_piece, "_", pinned_tile)]],
+                                                                     pc$diags[[j]][which(pc$diags[[j]] == pinner_tile):(length(pc$diags[[j]])-1)])
+      
+      }
   }
-  
+    
+
+  return(mymoves)
   
 }
