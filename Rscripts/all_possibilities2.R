@@ -2,14 +2,12 @@
 #' interno controllo per inchiodature  escacchi al re. Basta controllare dentro all_possibilities() per 
 #' valutare se la mossa è legale o no senza distinguere tra scacchi e altro (tranne arrocco per il momento)
 
-
-# PROVA A MTTERE A TUTTE LE FUNZIONI mymoves e enemy:moves, perch per il momento in caso di scacco al re la funzione non
-# sta funzionando a dovere
 # Kingcheck function returns all pieces giving check to the king
-kingcheck <- function(currentboard = game$board, turn = game$turn, enemy_moves = legalmoves[[enemy]]){
+kingcheck <- function(currentboard = game$board, turn = game$turn, legalmoves){
   checkinglines <- list()
   myself <- ifelse(turn == 1, "w", "b")
   enemy <- ifelse(game$turn == 1, "b", "w")
+  enemy_moves = legalmoves[[enemy]]
   
   mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
   
@@ -22,12 +20,13 @@ kingcheck <- function(currentboard = game$board, turn = game$turn, enemy_moves =
   return(checkinglines)
 }
 
-parrycheck <- function(currentboard = game$board, turn = game$turn, mymoves =legalmoves[[myself]] ) {
+parrycheck <- function(currentboard = game$board, turn = game$turn,  legalmoves) {
   
   myself <- ifelse(turn == 1, "w", "b")
+  mymoves =legalmoves[[myself]]
   mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
   
-  checking_item <- names(kingcheck(enemy_moves = legalmoves[[enemy]]))
+  checking_item <- names(kingcheck(legalmoves = legalmoves))
   checking_tile <- substr(checking_item, 4,5)
   
   if (substr(checking_item,1,1) %in% c("B", "Q", "R") & length(checking_item) == 1) {
@@ -64,13 +63,15 @@ parrycheck <- function(currentboard = game$board, turn = game$turn, mymoves =leg
 
 
 
-escapecheck <- function(currentboard = game$board, turn = game$turn, enemy_moves = legalmoves[[enemy]]) {
+escapecheck <- function(currentboard = game$board, turn = game$turn, legalmoves) {
   
   escapes <- list()
   
   myself <- ifelse(turn == 1, "w", "b")
   mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
   enemy <- ifelse(game$turn == 1, "b", "w")
+  
+  enemy_moves = legalmoves[[enemy]]
   
   available_squares <- defmoves(King, initialposition = mykingposition, turn)
   
@@ -80,19 +81,22 @@ escapecheck <- function(currentboard = game$board, turn = game$turn, enemy_moves
 }
 
 
-removeattacker <- function(currentboard = game$board, turn = game$turn, mymoves = legalmoves[[myself]]) {
+removeattacker <- function(currentboard = game$board, turn = game$turn, legalmoves) {
   
   eaters <- list()
   
-  if (length(names(kingcheck(enemy_moves = legalmoves[[enemy]]))) == 1) {
+  if (length(names(kingcheck(legalmoves = legalmoves))) == 1) {
     
-    checking_item <- names(kingcheck(enemy_moves = legalmoves[[enemy]]))
+    checking_item <- names(kingcheck(legalmoves = legalmoves))
     checking_tile <- substr(checking_item, 4,5)
     
     myself <- ifelse(turn == 1, "w", "b")
+    mymoves = legalmoves[[myself]]
     
     for (j in names(mymoves)) {
-      if (checking_tile %in% mymoves[[j]]) eaters[[j]] <-  checking_tile
+      if (checking_tile %in% mymoves[[j]] &
+          !(substr(j, 1,1) == "p" & substr(j, 4,4) == substr(checking_tile,1,1)) # necessario perche i pedoni non mangiano dritti!
+          ) eaters[[j]] <-  checking_tile
     }
     
     return(eaters)
@@ -104,13 +108,13 @@ removeattacker <- function(currentboard = game$board, turn = game$turn, mymoves 
 
 
 
-pinned_piece2 <- function(currentboard = game$board, turn = game$turn, mymoves = legalmoves[[myself]]){
+pinned_piece2 <- function(currentboard = game$board, turn = game$turn, legalmoves){
   checkinglines <- list()
   myself <- ifelse(turn == 1, "w", "b")
   enemy <- ifelse(game$turn == 1, "b", "w")
   mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
   #mymoves <- all_possibilities()[[myself]] # this will be the modified object, excluding unplayable moves due to pins
-  #mymoves <- legalmoves[[myself]]
+  mymoves <- legalmoves[[myself]]
   potential_checklines0 <- list()
   
   x <- 1
@@ -225,7 +229,7 @@ pinned_piece2 <- function(currentboard = game$board, turn = game$turn, mymoves =
 
 
 # finds all legal moves
-all_possibilities <- function() {
+all_possibilities <- function(currentboard = game$board) {
   
   legalmoves <- list()
   
@@ -250,17 +254,52 @@ all_possibilities <- function() {
   # Now implement pinned piece restriction
   myself <- ifelse(game$turn == 1, "w", "b")
   enemy <- ifelse(game$turn == 1, "b", "w")
-  legalmoves[[myself]] <- pinned_piece2(mymoves = legalmoves[[myself]])
+  legalmoves[[myself]] <- pinned_piece2(legalmoves = legalmoves)
   
-  # If we are in check, all of this is garbage:
-  if (length(names(kingcheck(enemy_moves = legalmoves[[enemy]]))) >0) { # what you need to do if you are in check
-    parries <- parrycheck(mymoves = legalmoves[[myself]])
-    escapes <- escapecheck(enemy_moves = legalmoves[[enemy]])
-    eaters  <- removeattacker(mymoves = legalmoves[[myself]])
+  # Our king can only go in squares which are not controlled by the enemy!
+  mykingposition <- tilenames[which(currentboard == paste0("K", myself) )]
+  
+  available_K_squares <- legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]]
+  legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]] <- subset(available_K_squares, !available_K_squares %in% unique(Reduce(c, legalmoves[[enemy]])))
+  
+  # If castle is available, add it as a legal move:
+  castlingrow <- ifelse(game$turn == 1, "1", "8")
+  
+  # short castle
+  if (!grepl(paste0("e", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+      !grepl(paste0("h", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+      !(paste0("e", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      !(paste0("f", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      !(paste0("g", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      currentboard[tilenames == paste0("f", castlingrow)] == "" &
+      currentboard[tilenames == paste0("g", castlingrow)] == "") {
+    
+    legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]] <- append(legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]], "0-0")
+  }
+  
+  #long castle
+  if (!grepl(paste0("e", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+      !grepl(paste0("a", castlingrow), paste0(game$history, collapse = "_"), fixed = T) &
+      !(paste0("c", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      !(paste0("d", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      !(paste0("e", castlingrow) %in% unique(Reduce(c, legalmoves[[enemy]]))) &
+      currentboard[tilenames == paste0("b", castlingrow)] == "" &
+      currentboard[tilenames == paste0("c", castlingrow)] == "" &
+      currentboard[tilenames == paste0("d", castlingrow)] == "") {
+    
+    legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]] <- append(legalmoves[[myself]][[paste0("K", myself, "_", mykingposition)]], "0-0-0")
+  }
+  
+  
+  # If we are in check, legalomves[[myself]] is overwritten, and this finds the available moves:
+  if (length(names(kingcheck(legalmoves = legalmoves))) >0) { # what you need to do if you are in check
+    parries <- parrycheck(legalmoves = legalmoves)
+    escapes <- escapecheck(legalmoves = legalmoves)
+    eaters  <- removeattacker(legalmoves = legalmoves)
 
     
     keys <- unique(c(names(escapes), names(eaters), names(parries)))
-    legalmoves <- setNames(mapply(c, escapes[keys], eaters[keys], parries[keys]), keys)
+    legalmoves[[myself]] <- as.list(setNames(mapply(c, escapes[keys], eaters[keys], parries[keys]), keys))
   }
   return(legalmoves)
 }
@@ -268,43 +307,92 @@ all_possibilities <- function() {
 
 ###############
 
-make_move3 <- function(piece, initialposition = "", finalposition = "", currentboard = game$board,
+make_move4 <- function(piece, initialposition = "", finalposition = "", currentboard = game$board,
                        turn = game$turn) {
   
-  if (initialposition %in% c("0-0", "O-O", "0-0-0", "O-O-O")) { # if you are not in check, you may want to castle
+  myself <- ifelse(game$turn == 1, "w", "b")
+
+  if (finalposition %in% all_possibilities()[[myself]][[paste0(piece$label, myself, "_", initialposition)]]) {
     
-    castled <- castling(initialposition)
-    
-    currentboard <- castled$board
-    turn <- castled$turn
-    history <- castled$history
-    
-  } else if (finalposition %in% defmoves(piece, initialposition, turn = game$turn) & 
-             paste0(piece$label, ifelse(turn == 1, "w", "b")) == game$board[which(tilenames == initialposition)]) { # or any other move!
-    
-    currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
-    currentboard[which(tilenames == initialposition)] <- ""
-    
-    # promotion of pawns in 1st/8th row (always to queen for now)
-    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) {
-      currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
+    if (finalposition == "0-0") { # if you are not in check, you may want to castle
+      castlingrow <- ifelse(game$turn == 1, "1", "8")
+      
+      currentboard[which(tilenames == paste0("g", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
+      currentboard[which(tilenames == paste0("f", castlingrow))] <- currentboard[which(tilenames == paste0("h", castlingrow))]
+      
+      currentboard[which(tilenames == paste0("e", castlingrow))] <- ""
+      currentboard[which(tilenames == paste0("h", castlingrow))] <- ""
+      
+      move <- paste0("Ke", castlingrow, "_0-0")
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
+      
+    } else if (finalposition == "0-0-0") {
+      castlingrow <- ifelse(game$turn == 1, "1", "8")
+      
+      currentboard[which(tilenames == paste0("c", castlingrow))] <- currentboard[which(tilenames == paste0("e", castlingrow))]
+      currentboard[which(tilenames == paste0("d", castlingrow))] <- currentboard[which(tilenames == paste0("a", castlingrow))]
+      
+      currentboard[which(tilenames == paste0("a", castlingrow))] <- ""
+      currentboard[which(tilenames == paste0("e", castlingrow))] <- ""
+      
+      move <- paste0("Ke", castlingrow, "_0-0-0")
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
+      
+    } else { # or any other move!
+      
+      currentboard[which(tilenames == finalposition)] <- currentboard[which(tilenames == initialposition)]
+      currentboard[which(tilenames == initialposition)] <- ""
+      
+      # promotion of pawns in 1st/8th row (always to queen for now)
+      if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) {
+        currentboard[which(tilenames == finalposition)] <- paste0("Q", ifelse(turn == 1, "w", "b"))
+      }
+      
+      # Enforce capture notation if piece is captured (x)
+      #move <- paste0(piece$label, initialposition, "-", finalposition)
+      move <- if (game$board[tilenames == finalposition] == "") {
+        paste0(piece$label, initialposition, "-", finalposition)
+      } else {
+        paste0(piece$label, initialposition, "x", finalposition)
+      }
+      
+      if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) move <-paste0(move, "=Q")
+      
+      
+      history <- c(game$history, move)
+      turn <- ifelse(length(history)%%2 == 0, 1, -1)
     }
     
-    #move <- paste0(piece$label, initialposition, "-", finalposition)
-    move <- if (game$board[tilenames == finalposition] == "") {
-      paste0(piece$label, initialposition, "-", finalposition)
-    } else {
-      paste0(piece$label, initialposition, "x", finalposition)
-    }
     
-    if (piece$label == "p" & unlist(strsplit(finalposition, ""))[2] %in% c(1,8)) move <-paste0(move, "=Q")
-    
-    
-    history <- c(game$history, move)
-    turn <- ifelse(length(history)%%2 == 0, 1, -1)
   } else {
     message("Move not valid")
     history <- game$history
   }
+  
+  
   return(list(board = currentboard, turn = turn, history = history))
 }
+
+# game ending check
+
+game_result <- function(currentboard = game$board, turn = game$turn) {
+  playersturn <- ifelse(turn == 1, "w", "b")
+  color <- ifelse(playersturn == "w", "white", "black")
+  other <- ifelse(playersturn == "w", "black", "white")
+  
+  if (length(as.character(unlist(all_possibilities()[[playersturn]]))) == 0) {
+    if (length(kingcheck(currentboard = currentboard, turn = turn, legalmoves = all_possibilities(currentboard = currentboard))) > 0) {
+      message("Checkmate! End of the game")
+      message(paste0(other, " wins"))
+    } else {
+      message("Stalemate! Draw")
+    }
+  } else {
+    message("There are still legal moves available, the game is ongoing")
+    message(paste0("To move: " , color))
+  }
+  
+}
+
